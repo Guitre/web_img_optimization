@@ -1,0 +1,70 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4.1.0-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 30s
+      retries: 10
+      start_period: 20s
+
+  mongo:
+    image: mongo:7.0
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 30s
+      retries: 10
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+      target: api
+    container_name: webimg_api
+    environment:
+      - PORT=4000
+      - RABBITMQ_URL=amqp://rabbitmq
+      - MONGODB_URI=mongodb://mongo:27017/image_optimization
+    ports:
+      - "4000:4000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    volumes:
+      - ./processed_images:/app/processed_images
+    restart: always
+
+  worker:
+    build:
+      context: .
+      target: worker
+    container_name: webimg_worker
+    environment:
+      - RABBITMQ_URL=amqp://rabbitmq
+      - MONGODB_URI=mongodb://mongo:27017/image_optimization
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    volumes:
+      - ./processed_images:/app/processed_images
+    restart: always
+
+volumes:
+  mongo_data:
