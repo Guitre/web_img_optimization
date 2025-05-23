@@ -81,5 +81,5 @@ curl http://localhost:3000/status/SEU_TASK_ID_AQUI
 ## Testes
 Execute os testes com:
 ```powershell
-npm test
+npx jest
 ```
